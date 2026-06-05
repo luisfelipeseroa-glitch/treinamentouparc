@@ -374,7 +374,11 @@ footer{margin-top:auto}
     <div class="card" id="pending-card">
       <h3>📋 Certificados pendentes de assinatura</h3>
       <p style="font-size:13px;color:var(--textmid);margin-bottom:16px">Colaboradores que concluíram o curso e aguardam sua validação. Clique em "Assinar e liberar" para assinar digitalmente e gerar o certificado.</p>
-      <div id="pending-list"><p style="font-size:13px;color:var(--gray)">Nenhum certificado pendente.</p></div>
+      <div class="btn-row" style="margin-bottom:14px">
+        <button class="btn primary" onclick="loadPendingFromSheet()" id="btn-load-pending">⟳ Carregar pendentes da planilha</button>
+        <div class="sheet-status" id="pending-sheet-status" style="margin:0;display:none"></div>
+      </div>
+      <div id="pending-list"><p style="font-size:13px;color:var(--gray)">Clique em "Carregar pendentes da planilha" para buscar os certificados aguardando assinatura.</p></div>
     </div>
 
     <!-- MODAL assinatura coordenador -->
@@ -880,12 +884,24 @@ function confirmColabSig(){
   };
   PENDING_CERTS.push(entry);
 
-  // Envia para planilha como PENDENTE
+  // Envia para planilha como PENDENTE, incluindo assinatura base64 e todos os dados do certificado
   sendSheet({
-    action:'updateStatus',cpf:S.user.cpf,curso:S.course.title,nome:S.user.name,
-    conselho:S.user.council||'—',setor:cat.name,status:'Concluído',
-    tempoTotal:diffTime(S.startDT,S.endDT),dataInicio:fmtDT(S.startDT),
-    dataConclusao:fmtDT(S.endDT),certAssinado:'PENDENTE'
+    action:'savePendingCert',
+    cpf:S.user.cpf,
+    curso:S.course.title,
+    nome:S.user.name,
+    conselho:S.user.council||'—',
+    setor:cat.name,
+    status:'Concluído',
+    tempoTotal:diffTime(S.startDT,S.endDT),
+    dataInicio:fmtDT(S.startDT),
+    dataConclusao:fmtDT(S.endDT),
+    certAssinado:'PENDENTE',
+    certCode:S.certCode,
+    pct:S.pct,
+    courseColor:S.course.color||'#1A3A6B',
+    phases:S.course.phases.map(p=>p.name).join('|'),
+    sigColabData:S.sigColabData
   });
 
   // Esconde card de assinatura, mostra aviso de pendente
@@ -968,15 +984,53 @@ function confirmCoordSig(){
     document.getElementById('coord-sig-err').style.display='flex';return;
   }
   CURRENT_PENDING.sigCoordData=c.toDataURL('image/png');
-  // Remove da fila
+  // Remove da fila local
   PENDING_CERTS=PENDING_CERTS.filter(p=>p.id!==CURRENT_PENDING.id);
   const entry=CURRENT_PENDING;
   closeCoordModal();
-  // Atualiza planilha
-  sendSheetAdmin({action:'updateCertificate',cpf:entry.cpf,curso:entry.curso});
+  // Atualiza planilha: marca como ASSINADO e remove sigColabData da col L
+  sendSheetAdmin({action:'updateCertificate',cpf:entry.cpf,curso:entry.curso,certCode:entry.certCode});
   // Gera PDF
   generatePDFFromEntry(entry);
   renderPendingList();
+}
+
+// Busca pendentes da planilha (GET com parâmetro action=getPending)
+async function loadPendingFromSheet(){
+  const btn=document.getElementById('btn-load-pending');
+  const st=document.getElementById('pending-sheet-status');
+  btn.disabled=true;
+  st.className='sheet-status loading';st.innerHTML='⟳ Buscando pendentes na planilha...';st.style.display='flex';
+  try{
+    const url=GAS_URL+'?action=getPending';
+    const resp=await fetch(url,{method:'GET'});
+    const json=await resp.json();
+    if(!json.pendentes||!json.pendentes.length){
+      PENDING_CERTS=[];
+      st.className='sheet-status ok';st.innerHTML='✓ Nenhum certificado pendente encontrado.';
+      renderPendingList();
+    } else {
+      // Mescla: mantém locais + adiciona novos da planilha (sem duplicar por certCode)
+      const existingCodes=new Set(PENDING_CERTS.map(p=>p.certCode));
+      json.pendentes.forEach(p=>{
+        if(!existingCodes.has(p.certCode)){
+          p.id='P-'+p.certCode; // id estável baseado no certCode
+          p.startDT=p.dataInicio?new Date(p.dataInicio.split(' ')[0].split('/').reverse().join('-')):new Date();
+          p.endDT=p.dataConclusao?new Date(p.dataConclusao.split(' ')[0].split('/').reverse().join('-')):new Date();
+          p.phases=p.phases?(p.phases.split('|')||[]):[];
+          p.sigCoordData='';
+          PENDING_CERTS.push(p);
+        }
+      });
+      st.className='sheet-status ok';st.innerHTML=`✓ ${json.pendentes.length} pendente(s) carregado(s).`;
+      renderPendingList();
+    }
+  }catch(e){
+    st.className='sheet-status fail';st.innerHTML='✕ Erro ao buscar da planilha. Verifique o GAS.';
+    console.error(e);
+  }
+  btn.disabled=false;
+  setTimeout(()=>st.style.display='none',4000);
 }
 
 async function sendSheet(payload){
