@@ -555,7 +555,7 @@ function validateId(){
   if(!valCPF(cpf)){err.textContent='CPF inválido.';err.style.display='flex';return;}
   if(cat.req&&!council){err.textContent=`Nº ${cat.councilLbl} é obrigatório para esta categoria.`;err.style.display='flex';return;}
   S.user={name,cpf,council};
-  sendSheet({nome:name,cpf,conselho:council||'—',setor:cat.name,curso:'',status:'Em andamento',tempoTotal:'—',dataInicio:fmtDT(new Date()),dataConclusao:'',certAssinado:'NÃO'});
+  // Registro na planilha feito apenas ao concluir e assinar o curso
   loadCourses();
 }
 
@@ -1037,7 +1037,10 @@ async function sendSheet(payload){
   const ss=document.getElementById('sheet-status');
   if(ss){ss.className='sheet-status loading';ss.innerHTML='⟳ Registrando na planilha...';ss.style.display='flex';}
   try{
-    await fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    // Envia via GET com payload em base64 para garantir que o GAS receba todos os campos
+    // (fetch com no-cors não transmite Content-Type:json, fazendo o GAS ignorar o body)
+    const encoded=encodeURIComponent(JSON.stringify(payload));
+    await fetch(GAS_URL+'?data='+encoded,{method:'GET',mode:'no-cors'});
     if(ss){ss.className='sheet-status ok';ss.innerHTML='✓ Dados registrados com sucesso na planilha.';}
   }catch(e){
     if(ss){ss.className='sheet-status fail';ss.innerHTML='✕ Erro ao enviar para a planilha.';}
@@ -1046,7 +1049,8 @@ async function sendSheet(payload){
 
 async function sendSheetAdmin(payload){
   try{
-    await fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const encoded=encodeURIComponent(JSON.stringify(payload));
+    await fetch(GAS_URL+'?data='+encoded,{method:'GET',mode:'no-cors'});
   }catch(e){console.error('Erro ao enviar planilha:',e);}
 }
 
