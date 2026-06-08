@@ -424,7 +424,7 @@ footer{margin-top:auto}
       <div class="btn-row">
         <button class="btn primary" onclick="addCourse()">+ Adicionar curso</button>
       </div>
-      <p style="font-size:11px;color:var(--gray);margin-top:8px">As fases 2 e 3 serão criadas com questões modelo. As 5 respostas de cada questão são embaralhadas automaticamente a cada acesso.</p>
+      <p style="font-size:11px;color:var(--gray);margin-top:8px">Preencha as 3 fases acima. As 5 respostas de cada questão são embaralhadas automaticamente a cada acesso.</p>
     </div>
 
     <div class="card">
@@ -1124,28 +1124,33 @@ function removeCourse(catId,cid){
 
 function buildAdminQFields(){
   const el=document.getElementById('admin-q-fields');el.innerHTML='';
-  for(let i=0;i<5;i++){
-    const d=document.createElement('div');d.className='q-edit';
-    d.innerHTML=`<div class="q-edit-lbl">Questão ${i+1}</div>
-    <div class="fg" style="margin-bottom:6px"><input type="text" placeholder="Pergunta" id="aq${i}-p"></div>
-    <div class="frow">
-      <div class="fg"><input type="text" placeholder="A — Correta" id="aq${i}-a" style="border-color:#6EE7B7"></div>
-      <div class="fg"><input type="text" placeholder="B" id="aq${i}-b"></div>
-    </div>
-    <div class="frow">
-      <div class="fg"><input type="text" placeholder="C" id="aq${i}-c"></div>
-      <div class="fg"><input type="text" placeholder="D" id="aq${i}-d"></div>
-    </div>
-    <div class="fg"><input type="text" placeholder="E" id="aq${i}-e"></div>`;
-    el.appendChild(d);
+  for(let ph=0;ph<3;ph++){
+    const header=document.createElement('div');
+    header.style.cssText='display:flex;align-items:center;gap:10px;border-top:2px solid var(--lightgray);padding-top:16px;margin-top:'+(ph===0?'0':'8px');
+    header.innerHTML=`<span style="font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap">Fase ${ph+1} \u2014</span>
+      <input type="text" id="phase${ph}-name" placeholder="Nome da fase (ex: Introdução)" value="Fase ${ph+1}"
+        style="font-size:13px;font-weight:600;border:1.5px solid var(--lightgray);border-radius:8px;padding:6px 10px;flex:1">`;
+    el.appendChild(header);
+    const note=document.createElement('p');
+    note.style.cssText='font-size:11px;color:var(--gray);margin:4px 0 10px';
+    note.textContent='Opção A é sempre a correta — embaralhada automaticamente a cada acesso.';
+    el.appendChild(note);
+    for(let i=0;i<5;i++){
+      const d=document.createElement('div');d.className='q-edit';
+      d.innerHTML=`<div class="q-edit-lbl">Questão ${i+1}</div>
+      <div class="fg" style="margin-bottom:6px"><input type="text" placeholder="Pergunta" id="aq${ph}-${i}-p"></div>
+      <div class="frow">
+        <div class="fg"><input type="text" placeholder="A — Correta" id="aq${ph}-${i}-a" style="border-color:#6EE7B7"></div>
+        <div class="fg"><input type="text" placeholder="B" id="aq${ph}-${i}-b"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><input type="text" placeholder="C" id="aq${ph}-${i}-c"></div>
+        <div class="fg"><input type="text" placeholder="D" id="aq${ph}-${i}-d"></div>
+      </div>
+      <div class="fg"><input type="text" placeholder="E" id="aq${ph}-${i}-e"></div>`;
+      el.appendChild(d);
+    }
   }
-}
-
-function makeModelPhase(name,num){
-  return{name,images:[],qs:Array.from({length:5},(_,i)=>({
-    q:`(Fase ${num} — Questão ${i+1}) Edite esta pergunta no painel de gestão`,
-    opts:['Opção A — correta','Opção B','Opção C','Opção D','Opção E'],a:0
-  }))};
 }
 
 function addCourse(){
@@ -1155,21 +1160,35 @@ function addCourse(){
   const color=document.getElementById('new-color').value;
   const err=document.getElementById('admin-err');err.style.display='none';
   if(!title){err.textContent='Informe o título do curso.';err.style.display='flex';return;}
-  const qs=[];
-  for(let i=0;i<5;i++){
-    const p=document.getElementById(`aq${i}-p`).value.trim();
-    const a=document.getElementById(`aq${i}-a`).value.trim();
-    if(!p||!a){err.textContent=`Preencha a pergunta e a opção A da questão ${i+1} (fase 1).`;err.style.display='flex';return;}
-    qs.push({q:p,opts:[a,document.getElementById(`aq${i}-b`).value.trim()||'—',document.getElementById(`aq${i}-c`).value.trim()||'—',document.getElementById(`aq${i}-d`).value.trim()||'—',document.getElementById(`aq${i}-e`).value.trim()||'—'],a:0});
+  const phases=[];
+  for(let ph=0;ph<3;ph++){
+    const phaseName=(document.getElementById(`phase${ph}-name`)||{}).value||`Fase ${ph+1}`;
+    const qs=[];
+    for(let i=0;i<5;i++){
+      const p=(document.getElementById(`aq${ph}-${i}-p`)||{}).value||'';
+      const a=(document.getElementById(`aq${ph}-${i}-a`)||{}).value||'';
+      if(!p.trim()||!a.trim()){err.textContent=`Preencha a pergunta e a opção A da questão ${i+1} da Fase ${ph+1}.`;err.style.display='flex';return;}
+      qs.push({
+        q:p.trim(),
+        opts:[
+          a.trim(),
+          (document.getElementById(`aq${ph}-${i}-b`)||{}).value||'—',
+          (document.getElementById(`aq${ph}-${i}-c`)||{}).value||'—',
+          (document.getElementById(`aq${ph}-${i}-d`)||{}).value||'—',
+          (document.getElementById(`aq${ph}-${i}-e`)||{}).value||'—'
+        ],
+        a:0
+      });
+    }
+    phases.push({name:phaseName.trim()||`Fase ${ph+1}`,images:[],qs});
   }
-  const newC={id:'c'+Date.now(),title,dur:dur||'—',color,councilReq:'',
-    phases:[{name:'Fase 1',images:[],qs},makeModelPhase('Fase 2',2),makeModelPhase('Fase 3',3)]};
+  const newC={id:'c'+Date.now(),title,dur:dur||'—',color,councilReq:'',phases};
   if(!COURSES[catId])COURSES[catId]=[];
   COURSES[catId].push(newC);
   document.getElementById('new-title').value='';document.getElementById('new-dur').value='';
-  for(let i=0;i<5;i++)['p','a','b','c','d','e'].forEach(l=>{const el=document.getElementById(`aq${i}-${l}`);if(el)el.value='';});
+  buildAdminQFields();
   renderAdminList();
-  alert(`Curso "${title}" adicionado com sucesso!`);
+  alert(`Curso "${title}" adicionado com sucesso com 3 fases!`);
 }
 
 init();
