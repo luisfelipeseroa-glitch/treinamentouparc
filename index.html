@@ -1037,10 +1037,13 @@ async function sendSheet(payload){
   const ss=document.getElementById('sheet-status');
   if(ss){ss.className='sheet-status loading';ss.innerHTML='⟳ Registrando na planilha...';ss.style.display='flex';}
   try{
-    // Envia via GET com payload em base64 para garantir que o GAS receba todos os campos
-    // (fetch com no-cors não transmite Content-Type:json, fazendo o GAS ignorar o body)
-    const encoded=encodeURIComponent(JSON.stringify(payload));
-    await fetch(GAS_URL+'?data='+encoded,{method:'GET',mode:'no-cors'});
+    // POST com fetch normal — o GAS precisa ter CORS habilitado (ver doPost no GAS)
+    // A sigColabData (base64) não pode ir via URL pois corromperia os caracteres +/=
+    await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'}, // text/plain evita preflight CORS
+      body:JSON.stringify(payload)
+    });
     if(ss){ss.className='sheet-status ok';ss.innerHTML='✓ Dados registrados com sucesso na planilha.';}
   }catch(e){
     if(ss){ss.className='sheet-status fail';ss.innerHTML='✕ Erro ao enviar para a planilha.';}
@@ -1049,8 +1052,11 @@ async function sendSheet(payload){
 
 async function sendSheetAdmin(payload){
   try{
-    const encoded=encodeURIComponent(JSON.stringify(payload));
-    await fetch(GAS_URL+'?data='+encoded,{method:'GET',mode:'no-cors'});
+    await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain'},
+      body:JSON.stringify(payload)
+    });
   }catch(e){console.error('Erro ao enviar planilha:',e);}
 }
 
