@@ -1,13 +1,13 @@
 // ============================================================
 // Google Apps Script — EAD UPA Rocinha
-// Aba: "Tarefas" | Cabeçalho na linha 3 | Dados a partir linha 4
+// Aba: "Tarefas" | Cabeçalho na linha 4 | Dados a partir linha 5
 // Colunas: B=Nome C=CPF D=Conselho E=Setor F=Curso G=Status
 //          H=Tempo I=DataInício J=DataConclusão K=CertAssinado
 //          L=AssinaturaColabBase64 M=% N=CorCurso O=Fases P=CódCert
 // ============================================================
 
 const SHEET_NAME = 'Tarefas';
-const DATA_START  = 4;   // primeira linha de dados (linha 3 = cabeçalho)
+const DATA_START  = 5;   // primeira linha de dados (linha 4 = cabeçalho)
 
 const C = {
   nome:        2,   // B
